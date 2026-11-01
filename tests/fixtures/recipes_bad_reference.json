@@ -1,0 +1,5 @@
+{
+  "recipes": [
+    { "id": "bad_recipe", "name_fa": "دستور خراب", "inputs": { "ghost_resource": 1.0 }, "outputs": { "flour": 1.0 }, "output_per_second": 1.0 }
+  ]
+}

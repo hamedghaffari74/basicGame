@@ -1,0 +1,26 @@
+{
+  "initial_money": 500.0,
+  "initial_land_size": 8,
+  "maximum_land_size": 24,
+  "initial_storage_capacity": 40.0,
+  "tick_seconds": 0.1,
+  "max_steps_per_frame": 20,
+  "max_backlog_seconds": 2.0,
+  "autosave_seconds": 30.0,
+  "production_tolerance": 0.000001,
+  "tier_two_revenue": 450.0,
+  "tier_three_revenue": 2500.0,
+  "tier_two_production": 150.0,
+  "tier_three_production": 900.0,
+  "neighbor_bonus_cap": 0.4,
+  "offline_cap_seconds": 28800,
+  "prestige_base_revenue": 10000.0,
+  "prestige_bonus_per_point": 0.05,
+  "prestige_bonus_cap": 0.5,
+  "expansion_steps": [
+    { "size": 12, "cost": 180.0, "revenue": 0.0 },
+    { "size": 16, "cost": 450.0, "revenue": 450.0 },
+    { "size": 20, "cost": 1000.0, "revenue": 1200.0 },
+    { "size": 24, "cost": 2200.0, "revenue": 3000.0 }
+  ]
+}

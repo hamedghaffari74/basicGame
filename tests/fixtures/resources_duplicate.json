@@ -1,0 +1,6 @@
+{
+  "resources": [
+    { "id": "wheat", "name_fa": "گندم", "unit_price": 2.4, "color": "#e4bc55" },
+    { "id": "wheat", "name_fa": "گندم تکراری", "unit_price": 3.0, "color": "#e4bc55" }
+  ]
+}

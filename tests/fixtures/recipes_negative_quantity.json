@@ -1,0 +1,5 @@
+{
+  "recipes": [
+    { "id": "bad_quantity", "name_fa": "مقدار منفی", "inputs": {}, "outputs": { "flour": -1.0 }, "output_per_second": 1.0 }
+  ]
+}

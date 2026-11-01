@@ -1,0 +1,20 @@
+{
+  "buildings": [
+    {
+      "id": "flour_mill",
+      "name_fa": "آسیاب آرد",
+      "category": "کارخانه",
+      "kind": "producer",
+      "glyph": "M",
+      "color": "#b9854c",
+      "build_cost": 58,
+      "recipe_id": "mill_wheat",
+      "max_level": 5,
+      "refund_rate": 0.5,
+      "upgrade_base_multiplier": 8.5,
+      "upgrade_level_increment": 1.4,
+      "rate_per_level_increment": 0.3,
+      "description_fa": "گندم انبار را مصرف می‌کند و آرد می‌سازد."
+    }
+  ]
+}

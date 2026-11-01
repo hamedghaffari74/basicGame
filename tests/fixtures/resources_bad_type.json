@@ -1,0 +1,5 @@
+{
+  "resources": [
+    { "id": "wheat", "name_fa": "گندم", "unit_price": "2.4", "color": "#e4bc55" }
+  ]
+}

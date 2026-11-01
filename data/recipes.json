@@ -1,0 +1,130 @@
+{
+  "recipes": [
+    {
+      "id": "grow_wheat",
+      "name_fa": "کاشت گندم",
+      "inputs": {},
+      "outputs": { "wheat": 1.0 },
+      "output_per_second": 0.7
+    },
+    {
+      "id": "grow_wood",
+      "name_fa": "رشد درخت",
+      "inputs": {},
+      "outputs": { "wood": 1.0 },
+      "output_per_second": 0.35
+    },
+    {
+      "id": "extract_stone",
+      "name_fa": "استخراج سنگ",
+      "inputs": {},
+      "outputs": { "stone": 1.0 },
+      "output_per_second": 0.3
+    },
+    {
+      "id": "mill_wheat",
+      "name_fa": "آسیاب گندم",
+      "inputs": { "wheat": 1.0 },
+      "outputs": { "flour": 0.9 },
+      "output_per_second": 0.55
+    },
+    {
+      "id": "mine_coal",
+      "name_fa": "استخراج زغال‌سنگ",
+      "inputs": {},
+      "outputs": { "coal": 1.0 },
+      "output_per_second": 0.45
+    },
+    {
+      "id": "grow_corn",
+      "name_fa": "کاشت ذرت",
+      "inputs": {},
+      "outputs": { "corn": 1.0 },
+      "output_per_second": 0.62
+    },
+    {
+      "id": "grow_cotton",
+      "name_fa": "کاشت پنبه",
+      "inputs": {},
+      "outputs": { "cotton": 1.0 },
+      "output_per_second": 0.38
+    },
+    {
+      "id": "mine_iron",
+      "name_fa": "استخراج آهن",
+      "inputs": {},
+      "outputs": { "iron": 1.0 },
+      "output_per_second": 0.32
+    },
+    {
+      "id": "mine_copper",
+      "name_fa": "استخراج مس",
+      "inputs": {},
+      "outputs": { "copper": 1.0 },
+      "output_per_second": 0.24
+    },
+    {
+      "id": "extract_gas",
+      "name_fa": "استخراج گاز طبیعی",
+      "inputs": {},
+      "outputs": { "gas": 1.0 },
+      "output_per_second": 0.46
+    },
+    {
+      "id": "extract_sand",
+      "name_fa": "استخراج شن",
+      "inputs": {},
+      "outputs": { "sand": 1.0 },
+      "output_per_second": 0.48
+    },
+    {
+      "id": "smelt_steel",
+      "name_fa": "ذوب فولاد",
+      "inputs": { "iron": 0.8, "coal": 0.2 },
+      "outputs": { "steel": 0.65 },
+      "output_per_second": 0.28
+    },
+    {
+      "id": "make_cement",
+      "name_fa": "تولید سیمان",
+      "inputs": { "stone": 0.75, "coal": 0.1 },
+      "outputs": { "cement": 0.75 },
+      "output_per_second": 0.3
+    },
+    {
+      "id": "make_glass",
+      "name_fa": "تولید شیشه",
+      "inputs": { "sand": 0.8, "coal": 0.12 },
+      "outputs": { "glass": 0.8 },
+      "output_per_second": 0.27
+    },
+    {
+      "id": "make_cable",
+      "name_fa": "ساخت کابل",
+      "inputs": { "copper": 0.85 },
+      "outputs": { "cable": 0.65 },
+      "output_per_second": 0.22
+    },
+    {
+      "id": "make_electronics",
+      "name_fa": "مونتاژ قطعات الکترونیکی",
+      "inputs": { "cable": 0.55, "glass": 0.2, "steel": 0.2 },
+      "outputs": { "electronics": 0.55 },
+      "output_per_second": 0.12
+    },
+    {
+      "id": "make_food",
+      "name_fa": "فرآوری غذا",
+      "inputs": { "wheat": 0.35, "corn": 0.35 },
+      "outputs": { "food": 0.58 },
+      "output_per_second": 0.25
+    },
+    {
+      "id": "make_clothing",
+      "name_fa": "دوخت پوشاک",
+      "inputs": { "cotton": 0.7 },
+      "outputs": { "clothing": 0.5 },
+      "output_per_second": 0.2
+    }
+  ]
+}

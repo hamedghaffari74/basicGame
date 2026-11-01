@@ -1,0 +1,22 @@
+{
+  "resources": [
+    { "id": "wheat", "name_fa": "گندم", "unit_price": 2.4, "color": "#e4bc55" },
+    { "id": "wood", "name_fa": "چوب", "unit_price": 2.0, "color": "#94633f" },
+    { "id": "stone", "name_fa": "سنگ", "unit_price": 1.8, "color": "#9ba3a5" },
+    { "id": "flour", "name_fa": "آرد", "unit_price": 5.0, "color": "#eadfc5" },
+    { "id": "coal", "name_fa": "زغال‌سنگ", "unit_price": 2.2, "color": "#485057", "market_enabled_by_default": false },
+    { "id": "corn", "name_fa": "ذرت", "unit_price": 2.1, "color": "#e6c34c" },
+    { "id": "cotton", "name_fa": "پنبه", "unit_price": 2.8, "color": "#dedbd3" },
+    { "id": "iron", "name_fa": "آهن", "unit_price": 3.4, "color": "#89939b", "market_enabled_by_default": false },
+    { "id": "copper", "name_fa": "مس", "unit_price": 4.1, "color": "#b87849", "market_enabled_by_default": false },
+    { "id": "gas", "name_fa": "گاز", "unit_price": 2.6, "color": "#78a9b6", "market_enabled_by_default": false },
+    { "id": "sand", "name_fa": "شن", "unit_price": 1.0, "color": "#cfbd91", "market_enabled_by_default": false },
+    { "id": "steel", "name_fa": "فولاد", "unit_price": 7.5, "color": "#82929a", "market_enabled_by_default": false },
+    { "id": "cement", "name_fa": "سیمان", "unit_price": 4.8, "color": "#aaa79c" },
+    { "id": "glass", "name_fa": "شیشه", "unit_price": 6.0, "color": "#91c6c5", "market_enabled_by_default": false },
+    { "id": "cable", "name_fa": "کابل", "unit_price": 10.0, "color": "#df9d45", "market_enabled_by_default": false },
+    { "id": "electronics", "name_fa": "قطعات الکترونیکی", "unit_price": 24.0, "color": "#778bc0" },
+    { "id": "food", "name_fa": "غذا", "unit_price": 9.0, "color": "#bd854a" },
+    { "id": "clothing", "name_fa": "پوشاک", "unit_price": 17.0, "color": "#b16b80" }
+  ]
+}
