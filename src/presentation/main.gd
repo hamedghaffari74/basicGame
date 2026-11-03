@@ -544,13 +544,13 @@ func _build_build_panel() -> PanelContainer:
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		var grid: GridContainer = GridContainer.new()
 		grid.columns = 4
-		grid.add_theme_constant_override("h_separation", 7)
-		grid.add_theme_constant_override("v_separation", 7)
+		grid.add_theme_constant_override("h_separation", 6)
+		grid.add_theme_constant_override("v_separation", 6)
 		for definition: BuildingDefinition in _catalog.buildings.values():
 			if definition.category != category:
 				continue
 			var build_button: Button = _make_build_button(definition)
-			build_button.custom_minimum_size = Vector2(204.0, 64.0)
+			build_button.custom_minimum_size = Vector2(204.0, 54.0)
 			_build_buttons[definition.id] = build_button
 			grid.add_child(build_button)
 		scroll.add_child(grid)
@@ -1069,6 +1069,7 @@ func _make_build_button(definition: BuildingDefinition) -> Button:
 		button.icon = load(sprite_path) as Texture2D
 	button.custom_minimum_size.y = 40.0
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size", 13)
 	button.tooltip_text = _building_tooltip(definition)
 	button.text_direction = Control.TEXT_DIRECTION_AUTO
 	button.pressed.connect(_select_building.bind(definition.id))

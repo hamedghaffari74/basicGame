@@ -54,10 +54,10 @@ Phases 0–10 are implemented in the Godot project. The project was validated wi
 
 - New `شهرسازی` build tab with 3 decorative Tier-1 buildings of a new `decoration` kind: house ($60), pine ($25), oak ($30). No recipe, power, storage, or adjacency effects — pure visual progression. Catalog cap raised from 5 to 10 so they grow to level 10 (existing buildings keep max 5).
 - 33 cohesive flat-style SVGs generated parametrically by `tools/generate_city_sprites.gd` (house_1..10, pine_1..10, oak_1..10 + level-1 base files): fenced plot → hut → house → mansion → 2/3/3-fancy houses → apartment block → towers → city; sapling → tree → grove → forest (flowers, rocks, pond, bench, birds). Grid and build buttons load per-level art with base fallback. Preview grid: `tools/city_preview.png`.
-- Suite grows by 60 assertions (33 sprite loads + 27 level-10 upgrade path). NOTE: the local Godot runtime currently hangs on startup (even on an empty project), so no headless run was possible in this environment — re-run `tests/test_runner.tscn` locally to confirm the expected 291 green.
+- Suite grows by 66 assertions (33 sprite loads + 27 level-10 upgrade path + 6 base-sprite entries), verified green locally: **297 passed, 0 failed**.
 
 ## Validation
 
-- Godot 4.7.2 headless test runner: **231 assertions passed, 0 failed** (last verified run, before Phase 11).
-- Coverage includes legacy migration, manual sales, all tier/expansion paths, cardinal adjacency, power and battery, offline cap/negative time/steady-route parity, prestige reset/bonus, storage, save round-trip, car-chain regression, per-building unlock flow, five-minute deterministic play, all 33 city sprite loads, and the house/pine/oak level-10 upgrade path.
+- Godot 4.7.2 headless test runner: **297 assertions passed, 0 failed**.
+- Coverage includes legacy migration, manual sales, all tier/expansion paths, cardinal adjacency, power and battery, offline cap/negative time/steady-route parity, prestige reset/bonus, storage, save round-trip, car-chain regression, per-building unlock flow, five-minute deterministic play, all 33 city sprite stages, and the house/pine/oak level-10 upgrade path.
 - Interactive mouse/keyboard usability, Persian font rendering, and visual scaling still need a human check in the user's own Godot window.

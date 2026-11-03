@@ -17,8 +17,8 @@ If Godot is not in `PATH`, replace the `$godot` value with the path to the Godot
 
 ## Latest run
 
-- Result: **231 assertions passed; 0 failed** (last green run; the suite has since grown with 33 city-sprite loads and the level-10 city upgrade path — re-run locally to confirm).
-- The test scene exited normally. The log included `PASS: 231 assertions` and no script parse/runtime errors.
+- Result: **297 assertions passed; 0 failed**.
+- The test scene exited normally. The log included `PASS: 297 assertions` and no script parse/runtime errors.
 - A separate editor import/parse pass completed with exit code 0 (also re-verified after the 33 city SVGs were generated).
 - Five-minute economy scenario: sale at 0.1 simulated seconds, first farm upgrade at 94.2 seconds, `$781.8` revenue and 39.9/40 storage at five minutes.
 - Manual shop sale works without a market. Empty stock returns a clear failure reason; the UI displays why the shop button is disabled.
