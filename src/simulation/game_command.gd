@@ -1,7 +1,7 @@
 class_name GameCommand
 extends RefCounted
 
-enum Kind { BUILD, DEMOLISH, UPGRADE, SET_MARKET_RULE, SELL_RESOURCE, EXPAND_LAND, PRESTIGE }
+enum Kind { BUILD, DEMOLISH, UPGRADE, SET_MARKET_RULE, SELL_RESOURCE, EXPAND_LAND, PRESTIGE, UNLOCK_BUILDING }
 
 var kind: Kind = Kind.BUILD
 var definition_id: String = ""
@@ -59,4 +59,11 @@ static func expand_land() -> GameCommand:
 static func prestige() -> GameCommand:
 	var command: GameCommand = GameCommand.new()
 	command.kind = Kind.PRESTIGE
+	return command
+
+
+static func unlock_building(build_id: String) -> GameCommand:
+	var command: GameCommand = GameCommand.new()
+	command.kind = Kind.UNLOCK_BUILDING
+	command.definition_id = build_id
 	return command

@@ -2,7 +2,7 @@
   "initial_money": 500.0,
   "initial_land_size": 8,
   "maximum_land_size": 24,
-  "initial_storage_capacity": 40.0,
+  "initial_storage_capacity": 2000.0,
   "tick_seconds": 0.1,
   "max_steps_per_frame": 20,
   "max_backlog_seconds": 2.0,

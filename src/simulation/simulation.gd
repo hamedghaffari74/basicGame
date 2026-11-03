@@ -20,6 +20,7 @@ func initialize(game_catalog: GameCatalog) -> void:
 	catalog = game_catalog
 	state = GameState.new()
 	state.configure(catalog.resource_ids(), catalog.balance.initial_money, catalog.balance.initial_land_size, catalog.balance.initial_storage_capacity, catalog.market_sell_defaults())
+	_initialize_free_buildings()
 	income_per_second = 0.0
 	tick_count = 0
 	power_generated_per_second = 0.0
@@ -150,6 +151,7 @@ func get_snapshot() -> Dictionary:
 		"land_size": state.land_size,
 		"inventory": state.inventory.duplicate(),
 		"market_rules": state.market_rules.duplicate(true),
+		"unlocked_buildings": state.unlocked_buildings.duplicate(),
 		"storage_used": state.storage_used(),
 		"storage_capacity": get_storage_capacity(),
 		"buildings": building_rows,
@@ -183,6 +185,13 @@ func restore_state(candidate: GameState) -> bool:
 	var seen_ids: Dictionary[int, bool] = {}
 	var max_id: int = 0
 	var candidate_capacity: float = candidate.initial_storage_capacity
+	for building_id_value: Variant in candidate.unlocked_buildings:
+		var unlocked_building_id: String = str(building_id_value)
+		if not catalog.buildings.has(unlocked_building_id) or typeof(candidate.unlocked_buildings[building_id_value]) != TYPE_BOOL:
+			return false
+	for definition: BuildingDefinition in catalog.buildings.values():
+		if definition.tier <= 1 and not bool(candidate.unlocked_buildings.get(definition.id, false)):
+			return false
 	for building: BuildingInstance in candidate.buildings:
 		if building.id <= 0 or seen_ids.has(building.id) or not catalog.buildings.has(building.definition_id):
 			return false
@@ -250,6 +259,8 @@ func _apply_command(command: GameCommand) -> CommandResult:
 			return _expand_land()
 		GameCommand.Kind.PRESTIGE:
 			return _prestige()
+		GameCommand.Kind.UNLOCK_BUILDING:
+			return _unlock_building(command)
 	return CommandResult.new(false, "unknown_command", "فرمان ناشناخته است.")
 
 
@@ -257,8 +268,8 @@ func _build(command: GameCommand) -> CommandResult:
 	if not catalog.buildings.has(command.definition_id):
 		return CommandResult.new(false, "unknown_building", "این ساختمان در داده‌های بازی وجود ندارد.")
 	var definition: BuildingDefinition = catalog.buildings[command.definition_id]
-	if not is_tier_unlocked(definition.tier):
-		return CommandResult.new(false, "tier_locked", "این ساختمان در tier %d باز می‌شود؛ هدف درآمد یا تولید را کامل کن." % definition.tier)
+	if not is_building_unlocked(definition.id):
+		return CommandResult.new(false, "building_locked", "ابتدا مسیر %s را از پنل مسیر تولید با پرداخت $%s باز کن." % [definition.name_fa, _format_money(definition.unlock_cost)])
 	if command.cell.x < 0 or command.cell.y < 0 or command.cell.x >= state.land_size or command.cell.y >= state.land_size:
 		return CommandResult.new(false, "outside_land", "این خانه بیرون زمین است.")
 	if find_building_at(command.cell) != null:
@@ -273,6 +284,21 @@ func _build(command: GameCommand) -> CommandResult:
 	state.next_building_id += 1
 	state.buildings.append(building)
 	return CommandResult.new(true, "built", "%s ساخته شد." % definition.name_fa, building.id)
+
+
+func _unlock_building(command: GameCommand) -> CommandResult:
+	if not catalog.buildings.has(command.definition_id):
+		return CommandResult.new(false, "unknown_building", "این ساختمان در داده‌های بازی وجود ندارد.")
+	var definition: BuildingDefinition = catalog.buildings[command.definition_id]
+	if definition.tier <= 1:
+		return CommandResult.new(false, "already_unlocked", "ساختمان‌های Tier 1 از ابتدا باز هستند.")
+	if is_building_unlocked(definition.id):
+		return CommandResult.new(false, "already_unlocked", "مسیر %s قبلاً باز شده است." % definition.name_fa)
+	if state.money + EPSILON < definition.unlock_cost:
+		return CommandResult.new(false, "insufficient_funds", "برای بازکردن مسیر %s به $%s نیاز داری." % [definition.name_fa, _format_money(definition.unlock_cost)])
+	state.money -= definition.unlock_cost
+	state.unlocked_buildings[definition.id] = true
+	return CommandResult.new(true, "building_unlocked", "مسیر %s با پرداخت $%s باز شد؛ هزینهٔ ساخت آن جداگانه محاسبه می‌شود." % [definition.name_fa, _format_money(definition.unlock_cost)])
 
 
 func _demolish(command: GameCommand) -> CommandResult:
@@ -357,6 +383,7 @@ func _prestige() -> CommandResult:
 	var preserved_count: int = state.prestige_count + 1
 	var preserved_sound: bool = state.sound_enabled
 	state.configure(catalog.resource_ids(), catalog.balance.initial_money, catalog.balance.initial_land_size, catalog.balance.initial_storage_capacity, catalog.market_sell_defaults())
+	_initialize_free_buildings()
 	state.cumulative_revenue = preserved_revenue
 	state.cumulative_production = preserved_production
 	state.prestige_points = preserved_points
@@ -582,33 +609,21 @@ func _producer_can_run(building: BuildingInstance, recipe: RecipeDefinition, del
 
 
 func _step_market(delta_seconds: float) -> void:
-	var available_sales: float = _market_rate() * delta_seconds
 	var earnings: float = 0.0
-	if available_sales > 0.0:
+	if _market_count() > 0:
 		for resource_id: String in catalog.resource_ids():
 			var rule: Dictionary = state.market_rules.get(resource_id, {})
 			if not bool(rule.get("enabled", false)):
 				continue
 			var minimum_stock: float = maxf(0.0, float(rule.get("minimum_stock", 0.0)))
-			var available_stock: float = maxf(0.0, float(state.inventory.get(resource_id, 0.0)) - minimum_stock)
-			var sold: float = minf(available_stock, available_sales)
-			if sold <= EPSILON:
+			var sellable: float = maxf(0.0, float(state.inventory.get(resource_id, 0.0)) - minimum_stock)
+			if sellable <= EPSILON:
 				continue
-			state.inventory[resource_id] = maxf(0.0, float(state.inventory[resource_id]) - sold)
-			available_sales -= sold
-			earnings += sold * catalog.resources[resource_id].unit_price
+			state.inventory[resource_id] = maxf(0.0, float(state.inventory[resource_id]) - sellable)
+			earnings += sellable * catalog.resources[resource_id].unit_price
 	state.money += earnings
 	state.cumulative_revenue += earnings
 	income_per_second = earnings / delta_seconds
-
-
-func _market_rate() -> float:
-	var total_rate: float = 0.0
-	for building: BuildingInstance in state.buildings:
-		var definition: BuildingDefinition = catalog.buildings[building.definition_id]
-		if definition.kind == "market":
-			total_rate += definition.market_rate_per_second * float(building.level)
-	return total_rate
 
 
 func _market_count() -> int:
@@ -633,6 +648,20 @@ func is_tier_unlocked(tier: int) -> bool:
 	if tier == 2:
 		return state.cumulative_revenue >= catalog.balance.tier_two_revenue or state.cumulative_production >= catalog.balance.tier_two_production
 	return state.cumulative_revenue >= catalog.balance.tier_three_revenue or state.cumulative_production >= catalog.balance.tier_three_production
+
+
+func is_building_unlocked(building_id: String) -> bool:
+	if not catalog.buildings.has(building_id):
+		return false
+	var definition: BuildingDefinition = catalog.buildings[building_id]
+	return definition.tier <= 1 or bool(state.unlocked_buildings.get(building_id, false))
+
+
+func _initialize_free_buildings() -> void:
+	state.unlocked_buildings.clear()
+	for definition: BuildingDefinition in catalog.buildings.values():
+		if definition.tier <= 1:
+			state.unlocked_buildings[definition.id] = true
 
 
 func get_current_tier() -> int:

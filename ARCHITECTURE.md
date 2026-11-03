@@ -31,7 +31,7 @@ The live game uses a fixed 0.1-second simulation step. Catch-up work per rendere
 ## Current game data
 
 - Starting land is 8×8 and expands through 12, 16, 20, and 24. Every building occupies one cell.
-- The catalog contains 18 resources, 18 recipes, and 27 buildings. Recipe inputs are validated against producer outputs, and recipe cycles are rejected.
+- The catalog contains 24 resources, 24 recipes, and 36 buildings, including the 6-step car chain (rubber→tire→paint/engine/body→car) and 3 decorative city buildings (house/pine/oak, 10 levels each). Recipe inputs are validated against producer outputs, and recipe cycles are rejected.
 - The market sells enabled goods through shared throughput; the shop provides manual all-stock sales at the configured resource price.
 - The power grid is global. There are no cables, belts, or local power regions.
 - Tier and expansion thresholds read cumulative revenue/production, so spending cannot undo an unlock. Prestige preserves cumulative counters and prestige points while resetting the current city.

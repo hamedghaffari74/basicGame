@@ -1,7 +1,7 @@
 class_name GameCatalog
 extends RefCounted
 
-const SUPPORTED_BUILDING_KINDS: Array[String] = ["producer", "storage", "market", "shop", "power", "battery", "park"]
+const SUPPORTED_BUILDING_KINDS: Array[String] = ["producer", "storage", "market", "shop", "power", "battery", "park", "decoration"]
 
 var resources: Dictionary[String, ResourceDefinition] = {}
 var recipes: Dictionary[String, RecipeDefinition] = {}
@@ -183,7 +183,7 @@ func _load_buildings(path: String) -> void:
 			if row.has(optional_field) and typeof(row[optional_field]) != TYPE_STRING:
 				errors.append("%s: buildings[%s].%s باید متن باشد" % [path, building_id, optional_field])
 				bad_type = true
-		for optional_field: String in ["storage_capacity", "market_rate_per_second", "power_output_per_second", "power_demand_per_second", "fuel_per_energy", "battery_capacity", "battery_charge_per_second", "battery_discharge_per_second"]:
+		for optional_field: String in ["unlock_cost", "storage_capacity", "market_rate_per_second", "power_output_per_second", "power_demand_per_second", "fuel_per_energy", "battery_capacity", "battery_charge_per_second", "battery_discharge_per_second"]:
 			if row.has(optional_field) and not _is_finite_number(row[optional_field]):
 				errors.append("%s: buildings[%s].%s باید عدد محدود باشد" % [path, building_id, optional_field])
 				bad_type = true
@@ -206,6 +206,7 @@ func _load_buildings(path: String) -> void:
 		definition.glyph = str(row["glyph"])
 		definition.color_hex = str(row["color"])
 		definition.build_cost = _number(row["build_cost"])
+		definition.unlock_cost = _number(row.get("unlock_cost", 0.0))
 		definition.max_level = int(row["max_level"])
 		definition.refund_rate = _number(row["refund_rate"])
 		definition.upgrade_base_multiplier = _number(row["upgrade_base_multiplier"])
@@ -241,8 +242,10 @@ func _load_buildings(path: String) -> void:
 			errors.append("%s: buildings[%s].color قالب رنگ معتبر ندارد" % [path, building_id])
 		if not SUPPORTED_BUILDING_KINDS.has(definition.kind):
 			errors.append("%s: buildings[%s].kind پشتیبانی نمی‌شود: %s" % [path, building_id, definition.kind])
-		if definition.build_cost <= 0.0 or definition.max_level < 1 or definition.max_level > 5:
+		if definition.build_cost <= 0.0 or definition.max_level < 1 or definition.max_level > 10:
 			errors.append("%s: buildings[%s] هزینه یا سطح نامعتبر دارد" % [path, building_id])
+		if definition.unlock_cost < 0.0 or (definition.tier == 1 and definition.unlock_cost > 0.0):
+			errors.append("%s: buildings[%s].unlock_cost باید نامنفی باشد و ساختمان‌های Tier 1 رایگان بمانند" % [path, building_id])
 		if definition.refund_rate < 0.0 or definition.refund_rate > 1.0:
 			errors.append("%s: buildings[%s].refund_rate باید بین ۰ و ۱ باشد" % [path, building_id])
 		if definition.upgrade_base_multiplier < 0.0 or definition.upgrade_level_increment < 0.0 or definition.rate_per_level_increment < 0.0:

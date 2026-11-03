@@ -28,7 +28,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	custom_minimum_size = Vector2(560.0, 360.0)
-	for definition_id: String in ["farm", "tree_lot", "stone_quarry", "flour_mill", "warehouse", "market", "shop", "solar_plant", "wind_turbine", "coal_plant", "battery", "coal_mine", "corn_farm", "cotton_farm", "iron_mine", "copper_mine", "gas_well", "sand_quarry", "gas_plant", "steel_mill", "cement_works", "glassworks", "cable_factory", "electronics_factory", "food_factory", "textile_mill", "park"]:
+	for definition_id: String in ["farm", "tree_lot", "stone_quarry", "flour_mill", "warehouse", "market", "shop", "solar_plant", "wind_turbine", "coal_plant", "battery", "coal_mine", "corn_farm", "cotton_farm", "iron_mine", "copper_mine", "gas_well", "sand_quarry", "gas_plant", "steel_mill", "cement_works", "glassworks", "cable_factory", "electronics_factory", "food_factory", "textile_mill", "park", "house", "pine", "oak"]:
 		var sprite_path: String = "res://assets/sprites/%s.png" % definition_id
 		if not ResourceLoader.exists(sprite_path):
 			sprite_path = "res://assets/sprites/%s.svg" % definition_id
@@ -36,6 +36,14 @@ func _ready() -> void:
 			var sprite: Texture2D = load(sprite_path) as Texture2D
 			if sprite != null:
 				_building_sprites[definition_id] = sprite
+	for leveled_id: String in ["house", "pine", "oak"]:
+		for level_index: int in range(1, 11):
+			var level_key: String = "%s_%d" % [leveled_id, level_index]
+			var level_path: String = "res://assets/sprites/%s.svg" % level_key
+			if ResourceLoader.exists(level_path):
+				var level_sprite: Texture2D = load(level_path) as Texture2D
+				if level_sprite != null:
+					_building_sprites[level_key] = level_sprite
 	queue_redraw()
 	set_process(true)
 
@@ -98,8 +106,13 @@ func _draw() -> void:
 		draw_rect(building_rect, color, true)
 		draw_rect(building_rect, Color("#29312d"), false, 2.0)
 		var definition_id: String = str(building.get("definition_id", ""))
-		if _building_sprites.has(definition_id):
-			var sprite: Texture2D = _building_sprites[definition_id]
+		var level_key: String = "%s_%d" % [definition_id, maxi(1, int(building.get("level", 1)))]
+		var sprite: Texture2D = null
+		if _building_sprites.has(level_key):
+			sprite = _building_sprites[level_key]
+		elif _building_sprites.has(definition_id):
+			sprite = _building_sprites[definition_id]
+		if sprite != null:
 			var bob: float = sin(animation_time * 2.4 + float(building.get("id", 0)) * 0.83) * minf(1.8, tile_size * 0.025)
 			var sprite_rect: Rect2 = Rect2(building_rect.position + Vector2(3.0, 3.0 + bob), building_rect.size - Vector2(6.0, 6.0))
 			draw_texture_rect(sprite, sprite_rect, false)

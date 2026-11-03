@@ -1,0 +1,23 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+body{background:#202d30;color:#eee;font-family:sans-serif;margin:16px}
+h2{color:#f1d37d;font-size:16px;margin:14px 0 6px}
+.row{display:flex;gap:6px}
+.cell{background:#263438;border:1px solid #4c6656;border-radius:8px;padding:4px;text-align:center}
+.cell img{width:128px;height:128px;display:block}
+.cell span{font-size:11px;color:#acbbb0}
+</style></head><body>
+<div id="root"></div>
+<script>
+const ids=['house','pine','oak'];
+let html='';
+for(const id of ids){
+  html+='<h2>'+id+' 1..10</h2><div class="row">';
+  for(let i=1;i<=10;i++){
+    const f='../assets/sprites/'+id+'_'+i+'.svg';
+    html+='<div class="cell"><img src="'+f+'"><span>'+id+' '+i+'</span></div>';
+  }
+  html+='</div>';
+}
+document.getElementById('root').innerHTML=html;
+</script>
+</body></html>

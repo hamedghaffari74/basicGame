@@ -1,14 +1,25 @@
 extends Control
 
-const BUILDING_CATEGORIES: Array[String] = ["کشاورزی", "معدن", "کارخانه", "خدمات", "نیروگاه", "زیرساخت"]
+const BUILDING_CATEGORIES: Array[String] = ["کشاورزی", "معدن", "کارخانه", "خدمات", "نیروگاه", "زیرساخت", "شهرسازی"]
 const SPEEDS: Array[float] = [0.0, 1.0, 2.0, 5.0]
 const RESOURCE_ICONS: Dictionary[String, String] = {
 	"wheat": "🌾", "wood": "🪵", "stone": "🪨", "flour": "🥣", "coal": "⚫",
 	"corn": "🌽", "cotton": "☁️", "iron": "⛓️", "copper": "🟠", "gas": "🔥",
 	"sand": "🏖️", "steel": "🔩", "cement": "🧱", "glass": "🧪", "cable": "🔌",
-	"electronics": "💡", "food": "🥫", "clothing": "👕"
+	"electronics": "💡", "food": "🥫", "clothing": "👕",
+	"rubber": "🌳", "tire": "🛞", "car_paint": "🎨",
+	"engine": "⚙️", "car_body": "🚗", "car": "🏎️"
 }
 const WorldGrid = preload("res://src/presentation/world_grid.gd")
+
+const TREE_CHAINS: Array = [
+	{"icon": "🏎️", "title": "خودرو", "final": "car"},
+	{"icon": "💡", "title": "الکترونیک", "final": "electronics"},
+	{"icon": "🥫", "title": "غذا", "final": "food"},
+	{"icon": "👕", "title": "پوشاک", "final": "clothing"},
+	{"icon": "🥣", "title": "آرد", "final": "flour"},
+	{"icon": "🧱", "title": "سیمان", "final": "cement"},
+]
 
 var _catalog: GameCatalog = GameCatalog.new()
 var _simulation: Simulation = Simulation.new()
@@ -53,6 +64,12 @@ var _progress_target: float = -1.0
 var _pulse_tweens: Dictionary = {}
 var _shop_controls: Array[Dictionary] = []
 var _build_buttons: Dictionary[String, Button] = {}
+var _route_buttons: Dictionary = {}
+var _route_state_labels: Dictionary = {}
+var _tree_rows: Array[Dictionary] = []
+var _tree_collapsed: Dictionary = {}
+var _tree_search: String = ""
+var _tree_count_labels: Dictionary = {}
 var _toolbar_buttons: Dictionary[String, Button] = {}
 var _confirmation_dialog: ConfirmationDialog
 var _prestige_dialog: ConfirmationDialog
@@ -162,6 +179,7 @@ func _load_saved_game() -> void:
 			_notice = "ساختار ذخیره با داده‌های فعلی سازگار نبود؛ بازی تازه آغاز شد."
 			return
 		var migrated: bool = bool(result.get("migrated", false))
+		var starting_money_adjusted: bool = bool(result.get("starting_money_adjusted", false))
 		var money_before_offline: float = loaded_state.money
 		var inventory_before_offline: Dictionary = loaded_state.inventory.duplicate()
 		var now: int = int(Time.get_unix_time_from_system())
@@ -178,16 +196,20 @@ func _load_saved_game() -> void:
 				changes_committed = true
 			else:
 				loaded_state = rollback_state
-				loaded_state.money = float(result.get("saved_money_before_migration", loaded_state.money))
+				if starting_money_adjusted:
+					loaded_state.money = float(result.get("saved_money_before_migration", loaded_state.money))
 				_notice = "تغییرات آفلاین/مهاجرت ذخیره نشد؛ برای جلوگیری از پاداش تکراری، این بار اعمال نشد."
 		if not _simulation.restore_state(loaded_state):
 			_notice = "ساختار ذخیره با داده‌های فعلی سازگار نبود؛ بازی تازه آغاز شد."
 			return
 		if changed_state and offline_seconds > 0 and changes_committed:
-			_offline_report = _make_offline_report(money_before_offline, inventory_before_offline, offline_seconds, elapsed_real > _catalog.balance.offline_cap_seconds, migrated)
+			_offline_report = _make_offline_report(money_before_offline, inventory_before_offline, offline_seconds, elapsed_real > _catalog.balance.offline_cap_seconds, migrated, starting_money_adjusted)
 			_notice = "زمان آفلاین محاسبه شد؛ گزارش درآمد و تولید آماده است."
 		elif migrated and changes_committed:
-			_notice = "ذخیرهٔ قبلی به‌روز شد و موجودی شروع به $%s افزایش یافت." % _format_money(_simulation.state.money - float(result.get("saved_money_before_migration", _simulation.state.money)))
+			if starting_money_adjusted:
+				_notice = "ذخیرهٔ قدیمی به‌روز شد و موجودی شروع به $%s افزایش یافت." % _format_money(_simulation.state.money - float(result.get("saved_money_before_migration", _simulation.state.money)))
+			else:
+				_notice = "ذخیرهٔ قبلی به نسخهٔ جدید ارتقا یافت؛ مسیرهای بازشده حفظ شدند."
 		elif not changed_state:
 			_notice = "بازی قبلی بارگذاری شد."
 	elif bool(result.get("unsupported_newer", false)):
@@ -197,7 +219,7 @@ func _load_saved_game() -> void:
 		_notice = str(result.get("message", "ذخیره بارگذاری نشد."))
 
 
-func _make_offline_report(previous_money: float, previous_inventory: Dictionary, seconds: int, capped: bool, migrated: bool) -> String:
+func _make_offline_report(previous_money: float, previous_inventory: Dictionary, seconds: int, capped: bool, migrated: bool, starting_money_adjusted: bool) -> String:
 	var hours: int = int(seconds / 3600)
 	var minutes: int = int((seconds % 3600) / 60)
 	var remaining_seconds: int = seconds % 60
@@ -205,6 +227,8 @@ func _make_offline_report(previous_money: float, previous_inventory: Dictionary,
 	var cash_delta: float = _simulation.state.money - previous_money
 	lines.append("تغییر پول: %s$%s" % ["+" if cash_delta >= 0.0 else "−", _format_money(absf(cash_delta))])
 	if migrated:
+		lines.append("ذخیره به نسخهٔ جدید ارتقا یافت و قفل مسیرهای قبلی حفظ شد.")
+	if starting_money_adjusted:
 		lines.append("ذخیرهٔ قدیمی هم به نسخهٔ جدید ارتقا یافت و حداقل پول شروع $%s اعمال شد." % _format_money(_catalog.balance.initial_money))
 	var inventory_changes: Array[String] = []
 	for resource_id: String in _catalog.resource_ids():
@@ -422,7 +446,7 @@ func _build_action_bar() -> Control:
 		{"id": "build", "text": "🏗  ساخت", "callback": _toggle_build_panel, "color": Color("#345644"), "hover": Color("#477658"), "accent": Color("#8bc489")},
 		{"id": "shop", "text": "🛍  فروشگاه", "callback": _open_shop_panel, "color": Color("#62502f"), "hover": Color("#806a3c"), "accent": Color("#d7bd75")},
 		{"id": "market", "text": "🏪  بازار", "callback": _toggle_market_panel, "color": Color("#2e5559"), "hover": Color("#3c7071"), "accent": Color("#82c3b7")},
-		{"id": "progress", "text": "🌱  گسترش", "callback": _toggle_progress_panel, "color": Color("#4e405d"), "hover": Color("#665477"), "accent": Color("#bba1ce")},
+		{"id": "progress", "text": "🗺  مسیر تولید", "callback": _toggle_progress_panel, "color": Color("#4e405d"), "hover": Color("#665477"), "accent": Color("#bba1ce")},
 	]:
 		var button: Button = Button.new()
 		button.text = str(action["text"])
@@ -606,7 +630,7 @@ func _build_market_panel() -> PanelContainer:
 		market_row.add_child(toggle)
 		var minimum: SpinBox = SpinBox.new()
 		minimum.min_value = 0.0
-		minimum.max_value = 1000.0
+		minimum.max_value = 100000.0
 		minimum.step = 1.0
 		minimum.prefix = "نگه‌دار "
 		minimum.custom_minimum_size.x = 142.0
@@ -623,10 +647,10 @@ func _build_market_panel() -> PanelContainer:
 func _build_progress_panel() -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	_style_panel(panel, Color("#202d30"), Color("#aa945d"))
-	_add_popup_panel(panel, 560.0, 235.0)
+	_add_popup_panel(panel, 1140.0, 600.0)
 	var body: VBoxContainer = VBoxContainer.new()
-	body.add_theme_constant_override("separation", 9)
-	body.add_child(_build_popup_header("پیشرفت شهرک", _close_popup))
+	body.add_theme_constant_override("separation", 7)
+	body.add_child(_build_popup_header("نقشهٔ مسیرهای تولید", _close_popup))
 	_progress_summary = _make_label("", 13, Color("#d6e5cc"))
 	body.add_child(_progress_summary)
 	_progress_bar = ProgressBar.new()
@@ -635,6 +659,61 @@ func _build_progress_panel() -> PanelContainer:
 	_progress_bar.custom_minimum_size.y = 16.0
 	_progress_bar.show_percentage = false
 	body.add_child(_progress_bar)
+	var route_hint: Label = _make_label("🌳 هر شاخه مسیر کامل یک محصول است، از ریشه (معدن و مزرعه) تا میوه (محصول نهایی). ▸ شاخه را باز و بسته کن و روی هر ردیف بزن تا مسیرش باز یا ساخته شود. کارخانه مشترک در چند شاخه تکرار می‌شود.", 11, Color("#acbbb0"))
+	route_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(route_hint)
+	_route_buttons.clear()
+	_route_state_labels.clear()
+	_tree_rows.clear()
+	_tree_collapsed.clear()
+	_tree_search = ""
+	_tree_count_labels.clear()
+	var toolbar: HBoxContainer = HBoxContainer.new()
+	toolbar.add_theme_constant_override("separation", 6)
+	var search_box: LineEdit = LineEdit.new()
+	search_box.placeholder_text = "🔍 جستجوی ساختمان یا کالا..."
+	search_box.clear_button_enabled = true
+	search_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	search_box.text_changed.connect(_on_tree_search_changed)
+	toolbar.add_child(search_box)
+	var expand_all: Button = Button.new()
+	expand_all.text = "➕ همه"
+	expand_all.tooltip_text = "بازکردن همه شاخه‌ها"
+	expand_all.pressed.connect(_on_tree_expand_all.bind(false))
+	toolbar.add_child(expand_all)
+	var collapse_all: Button = Button.new()
+	collapse_all.text = "➖ همه"
+	collapse_all.tooltip_text = "بستن همه شاخه‌ها"
+	collapse_all.pressed.connect(_on_tree_expand_all.bind(true))
+	toolbar.add_child(collapse_all)
+	body.add_child(toolbar)
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var tree_root: VBoxContainer = VBoxContainer.new()
+	tree_root.add_theme_constant_override("separation", 2)
+	tree_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for chain: Dictionary in TREE_CHAINS:
+		var root_building: BuildingDefinition = _producer_for_resource(str(chain["final"]))
+		if root_building == null:
+			continue
+		tree_root.add_child(_build_tree_section_header("%s مسیر %s" % [str(chain["icon"]), str(chain["title"])]))
+		_add_tree_row(tree_root, root_building, 0, "chain:" + str(chain["final"]), true)
+	var infra: Array[BuildingDefinition] = []
+	for definition: BuildingDefinition in _catalog.buildings.values():
+		if definition.kind != "producer":
+			infra.append(definition)
+	infra.sort_custom(func(a: BuildingDefinition, b: BuildingDefinition) -> bool:
+		if a.category == b.category:
+			return a.name_fa < b.name_fa
+		return a.category < b.category)
+	tree_root.add_child(_build_tree_section_header("⚙ خدمات و شهرسازی — برق، انبار، بازار، پارک، تزئینات"))
+	for definition: BuildingDefinition in infra:
+		_add_tree_row(tree_root, definition, 0, "infra:" + definition.id, false)
+	scroll.add_child(tree_root)
+	body.add_child(scroll)
+	_refresh_tree_visibility()
 	var buttons: HBoxContainer = HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
 	_expand_button = Button.new()
@@ -649,6 +728,282 @@ func _build_progress_panel() -> PanelContainer:
 	body.add_child(buttons)
 	panel.add_child(body)
 	return panel
+
+
+func _build_tree_section_header(text_value: String) -> Label:
+	var header: Label = _make_label(text_value, 14, Color("#f1d37d"))
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return header
+
+
+func _add_tree_row(box: VBoxContainer, definition: BuildingDefinition, depth: int, path: String, is_chain_root: bool) -> void:
+	var children: Array[BuildingDefinition] = _child_buildings(definition)
+	var is_branch: bool = not children.is_empty()
+	var card: PanelContainer = PanelContainer.new()
+	var border: Color = Color("#e8c34a") if is_chain_root else Color(definition.color_hex)
+	_style_panel(card, Color("#263438"), border)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.tooltip_text = _building_tooltip(definition)
+	card.gui_input.connect(_on_tree_row_clicked.bind(definition.id))
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if depth > 0:
+		var indent: Control = Control.new()
+		indent.custom_minimum_size = Vector2(float(depth) * 26.0, 0.0)
+		indent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(indent)
+	var fold: Button = Button.new()
+	fold.custom_minimum_size = Vector2(30.0, 0.0)
+	fold.focus_mode = Control.FOCUS_NONE
+	if is_branch:
+		fold.text = "▸" if bool(_tree_collapsed.get(path, false)) else "▾"
+		fold.tooltip_text = "باز/بسته‌کردن شاخه"
+		fold.pressed.connect(_on_tree_fold.bind(path))
+	else:
+		fold.text = "•"
+		fold.disabled = true
+	row.add_child(fold)
+	var icon_label: Label = _make_label(_tree_row_icon(definition), 20, Color.WHITE)
+	icon_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(icon_label)
+	var name_label: Label = _make_label("%s%s" % [definition.name_fa, "  ⭐" if is_chain_root else ""], 13, Color("#e8c34a") if is_chain_root else Color("#edf3e5"))
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_label.clip_text = true
+	name_label.tooltip_text = definition.description_fa
+	row.add_child(name_label)
+	var flow_label: Label = _make_label(_tree_flow_text(definition), 11, Color("#acbbb0"))
+	flow_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	flow_label.size_flags_stretch_ratio = 2.0
+	flow_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flow_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	flow_label.clip_text = true
+	row.add_child(flow_label)
+	var count_label: Label = _make_label("", 11, Color("#8fd0ff"))
+	count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(count_label)
+	var kind_label: Label = _make_label("🔒" if definition.tier > 1 else "✅", 12, Color("#f1d37d"))
+	kind_label.tooltip_text = "نیازمند بازکردن مسیر" if definition.tier > 1 else "باز"
+	kind_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(kind_label)
+	var action_button: Button = Button.new()
+	action_button.custom_minimum_size = Vector2(118.0, 34.0)
+	action_button.focus_mode = Control.FOCUS_NONE
+	action_button.pressed.connect(_on_route_action.bind(definition.id))
+	row.add_child(action_button)
+	card.add_child(row)
+	box.add_child(card)
+	if not _route_buttons.has(definition.id):
+		_route_buttons[definition.id] = []
+		_route_state_labels[definition.id] = []
+		_tree_count_labels[definition.id] = []
+	(_route_buttons[definition.id] as Array).append(action_button)
+	(_route_state_labels[definition.id] as Array).append(kind_label)
+	(_tree_count_labels[definition.id] as Array).append(count_label)
+	var child_keys: Array[String] = []
+	for child: BuildingDefinition in children:
+		child_keys.append(path + "/" + child.id)
+	_tree_rows.append({"panel": card, "fold": fold, "key": path, "parent": _parent_path(path), "children": child_keys, "is_branch": is_branch, "definition_id": definition.id, "search_text": _tree_search_text(definition)})
+	for child: BuildingDefinition in children:
+		_add_tree_row(box, child, depth + 1, path + "/" + child.id, false)
+
+
+func _parent_path(path: String) -> String:
+	var slash: int = path.rfind("/")
+	if slash < 0:
+		return ""
+	return path.substr(0, slash)
+
+
+func _tree_flow_text(definition: BuildingDefinition) -> String:
+	if definition.kind == "producer" and _catalog.recipes.has(definition.recipe_id):
+		var recipe: RecipeDefinition = _catalog.recipes[definition.recipe_id]
+		if recipe.inputs.is_empty():
+			return "⛏ ماده اولیه  •  ⬇ %s" % _route_goods_text(recipe.outputs)
+		return "⬇ %s  •  ⬆ %s" % [_route_goods_text(recipe.outputs), _route_goods_text(recipe.inputs)]
+	return _building_route_output(definition)
+
+
+func _tree_search_text(definition: BuildingDefinition) -> String:
+	var parts: Array[String] = [definition.name_fa, definition.category]
+	if definition.kind == "producer" and _catalog.recipes.has(definition.recipe_id):
+		var recipe: RecipeDefinition = _catalog.recipes[definition.recipe_id]
+		var resource_keys: Array = recipe.inputs.keys() + recipe.outputs.keys()
+		for res: Variant in resource_keys:
+			var resource: ResourceDefinition = _catalog.resources.get(str(res))
+			parts.append(resource.name_fa if resource != null else str(res))
+	else:
+		parts.append(_building_route_output(definition))
+	return " ".join(parts).to_lower()
+
+
+func _child_buildings(definition: BuildingDefinition) -> Array[BuildingDefinition]:
+	var result: Array[BuildingDefinition] = []
+	if definition.kind != "producer" or not _catalog.recipes.has(definition.recipe_id):
+		return result
+	var seen: Dictionary = {}
+	for input_id: Variant in _catalog.recipes[definition.recipe_id].inputs.keys():
+		var producer: BuildingDefinition = _producer_for_resource(str(input_id))
+		if producer == null or seen.has(producer.id):
+			continue
+		seen[producer.id] = true
+		result.append(producer)
+	result.sort_custom(func(a: BuildingDefinition, b: BuildingDefinition) -> bool: return a.name_fa < b.name_fa)
+	return result
+
+
+func _on_tree_row_clicked(event: InputEvent, definition_id: String) -> void:
+	if event is InputEventMouseButton:
+		var mouse_button: InputEventMouseButton = event as InputEventMouseButton
+		if mouse_button.button_index == MOUSE_BUTTON_LEFT and mouse_button.pressed:
+			_on_route_action(definition_id)
+
+
+func _on_tree_fold(path: String) -> void:
+	if bool(_tree_collapsed.get(path, false)):
+		_tree_collapsed.erase(path)
+	else:
+		_tree_collapsed[path] = true
+	_refresh_tree_visibility()
+
+
+func _on_tree_expand_all(collapse: bool) -> void:
+	if collapse:
+		for row: Dictionary in _tree_rows:
+			if bool(row["is_branch"]):
+				_tree_collapsed[str(row["key"])] = true
+	else:
+		_tree_collapsed.clear()
+	_refresh_tree_visibility()
+
+
+func _on_tree_search_changed(new_text: String) -> void:
+	_tree_search = new_text.strip_edges().to_lower()
+	_refresh_tree_visibility()
+
+
+func _refresh_tree_visibility() -> void:
+	var by_key: Dictionary = {}
+	for row: Dictionary in _tree_rows:
+		by_key[str(row["key"])] = row
+	var memo: Dictionary = {}
+	for row: Dictionary in _tree_rows:
+		var panel: PanelContainer = row["panel"] as PanelContainer
+		if panel == null:
+			continue
+		var show: bool = true
+		if _tree_search.is_empty():
+			show = not _has_collapsed_ancestor(str(row["key"]), by_key)
+		else:
+			show = _row_matches_search(row, memo, by_key)
+		panel.visible = show
+		if bool(row["is_branch"]):
+			var fold_button: Button = row["fold"] as Button
+			if fold_button != null:
+				fold_button.text = "▸" if bool(_tree_collapsed.get(str(row["key"]), false)) else "▾"
+
+
+func _has_collapsed_ancestor(key: String, by_key: Dictionary) -> bool:
+	var parent: String = _parent_path(key)
+	while not parent.is_empty():
+		if bool(_tree_collapsed.get(parent, false)):
+			return true
+		if not by_key.has(parent):
+			break
+		parent = _parent_path(parent)
+	return false
+
+
+func _row_matches_search(row: Dictionary, memo: Dictionary, by_key: Dictionary) -> bool:
+	var key: String = str(row["key"])
+	if memo.has(key):
+		return bool(memo[key])
+	var matched: bool = str(row["search_text"]).contains(_tree_search)
+	if not matched:
+		var child_keys: Array = row["children"] as Array
+		for child_key: Variant in child_keys:
+			var child: Dictionary = by_key.get(str(child_key), {}) as Dictionary
+			if child.is_empty():
+				continue
+			if _row_matches_search(child, memo, by_key):
+				matched = true
+				break
+	memo[key] = matched
+	return matched
+
+
+func _primary_tree_output(definition: BuildingDefinition) -> String:
+	if definition.kind == "producer" and _catalog.recipes.has(definition.recipe_id):
+		var outs: Array = _catalog.recipes[definition.recipe_id].outputs.keys()
+		if not outs.is_empty():
+			return str(outs[0])
+	return ""
+
+
+func _tree_row_icon(definition: BuildingDefinition) -> String:
+	if definition.kind == "decoration":
+		if definition.id == "house":
+			return "🏠"
+		return "🌲"
+	return RESOURCE_ICONS.get(_primary_tree_output(definition), "🏭")
+
+
+func _producer_for_resource(resource_id: String) -> BuildingDefinition:
+	var best: BuildingDefinition = null
+	for definition: BuildingDefinition in _catalog.buildings.values():
+		if definition.kind != "producer" or not _catalog.recipes.has(definition.recipe_id):
+			continue
+		if not _catalog.recipes[definition.recipe_id].outputs.has(resource_id):
+			continue
+		if best == null or definition.tier < best.tier or (definition.tier == best.tier and definition.build_cost < best.build_cost):
+			best = definition
+	return best
+
+
+func _route_goods_text(amounts: Dictionary) -> String:
+	var parts: Array[String] = []
+	var resource_ids: Array[String] = []
+	for key: Variant in amounts.keys():
+		resource_ids.append(str(key))
+	resource_ids.sort()
+	for resource_id: String in resource_ids:
+		if not _catalog.resources.has(resource_id):
+			continue
+		var resource: ResourceDefinition = _catalog.resources[resource_id]
+		parts.append("%s %s ×%s" % [RESOURCE_ICONS.get(resource_id, "📦"), resource.name_fa, String.num(float(amounts[resource_id]), 2)])
+	return " + ".join(parts)
+
+
+func _building_route_output(definition: BuildingDefinition) -> String:
+	match definition.kind:
+		"power":
+			return "شبکه\n⚡ +%s/s" % String.num(definition.power_output_per_second, 1)
+		"battery":
+			return "شبکه\n🔋 %s واحد" % _format_amount(definition.battery_capacity)
+		"storage":
+			return "انبار\n📦 +%s" % _format_amount(definition.storage_capacity)
+		"market":
+			return "بازار\n🛒 فروش آنی"
+		"shop":
+			return "فروش\n🛍 دستی"
+		"park":
+			return "همسایه\n🌳 +۱۲٪"
+		"decoration":
+			return "شهرسازی\n🏡 تزئینی"
+	return definition.description_fa
+
+
+func _on_route_action(building_id: String) -> void:
+	if not _catalog.buildings.has(building_id):
+		return
+	var definition: BuildingDefinition = _catalog.buildings[building_id]
+	if _simulation.is_building_unlocked(building_id):
+		_select_building(building_id)
+		return
+	_simulation.enqueue_command(GameCommand.unlock_building(building_id))
+	_notice = "درخواست بازکردن مسیر %s ثبت شد." % definition.name_fa
 
 
 func _build_inspector_panel() -> PanelContainer:
@@ -709,18 +1064,25 @@ func _make_build_button(definition: BuildingDefinition) -> Button:
 	button.text = "%s  •  $%d" % [definition.name_fa, int(definition.build_cost)]
 	button.toggle_mode = true
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var sprite_path: String = "res://assets/sprites/%s.png" % definition.id
-	if not FileAccess.file_exists(sprite_path):
-		sprite_path = "res://assets/sprites/%s.svg" % definition.id
+	var sprite_path: String = _building_icon_path(definition.id, 1)
 	if FileAccess.file_exists(sprite_path):
 		button.icon = load(sprite_path) as Texture2D
-	button.add_theme_constant_override("icon_max_width", 30)
 	button.custom_minimum_size.y = 40.0
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.tooltip_text = _building_tooltip(definition)
 	button.text_direction = Control.TEXT_DIRECTION_AUTO
 	button.pressed.connect(_select_building.bind(definition.id))
 	return button
+
+
+func _building_icon_path(definition_id: String, level: int) -> String:
+	var leveled: String = "res://assets/sprites/%s_%d.svg" % [definition_id, level]
+	if FileAccess.file_exists(leveled):
+		return leveled
+	var base_svg: String = "res://assets/sprites/%s.svg" % definition_id
+	if FileAccess.file_exists(base_svg):
+		return base_svg
+	return "res://assets/sprites/%s.png" % definition_id
 
 
 func _building_tooltip(definition: BuildingDefinition) -> String:
@@ -731,7 +1093,7 @@ func _building_tooltip(definition: BuildingDefinition) -> String:
 			lines.append("ورودی: %s" % _format_goods(recipe.inputs))
 		lines.append("خروجی: %s — %s/ثانیه" % [_format_goods(recipe.outputs), String.num(recipe.output_per_second, 2)])
 	if definition.tier > 1:
-		lines.append("بازشدن در Tier %d" % definition.tier)
+		lines.append("بازکردن مسیر: $%s" % _format_money(definition.unlock_cost))
 	return "\n".join(lines)
 
 
@@ -796,13 +1158,43 @@ func _refresh_ui() -> void:
 	for definition_id: String in _build_buttons:
 		_build_buttons[definition_id].button_pressed = _build_mode_id == definition_id
 		var definition: BuildingDefinition = _catalog.buildings[definition_id]
-		var unlocked: bool = _simulation.is_tier_unlocked(definition.tier)
+		var unlocked: bool = _simulation.is_building_unlocked(definition_id)
 		_build_buttons[definition_id].disabled = not unlocked
 		_build_buttons[definition_id].text = "%s  •  $%d%s" % [definition.name_fa, int(definition.build_cost), "  🔒" if not unlocked else ""]
 		if not unlocked:
-			_build_buttons[definition_id].tooltip_text = "%s\nبازشدن در Tier %d" % [_building_tooltip(definition), definition.tier]
+			_build_buttons[definition_id].tooltip_text = "%s\nبرای ساخت، ابتدا مسیر را در نقشه با $%s باز کن." % [_building_tooltip(definition), _format_money(definition.unlock_cost)]
 		else:
 			_build_buttons[definition_id].tooltip_text = _building_tooltip(definition)
+	var built_counts: Dictionary = {}
+	for row_building: Dictionary in snapshot["buildings"]:
+		var built_id: String = str(row_building.get("definition_id", ""))
+		built_counts[built_id] = int(built_counts.get(built_id, 0)) + 1
+	for definition_id: String in _route_buttons:
+		var definition: BuildingDefinition = _catalog.buildings[definition_id]
+		var unlocked: bool = _simulation.is_building_unlocked(definition_id)
+		var built_count: int = int(built_counts.get(definition_id, 0))
+		for count_label: Label in (_tree_count_labels.get(definition_id, []) as Array):
+			count_label.text = ("×%d" % built_count) if built_count > 0 else ""
+		var state_text: String = "✅ باز" if unlocked else "🔐 قفل"
+		for route_state: Label in (_route_state_labels.get(definition_id, []) as Array):
+			route_state.text = state_text
+		var action_text: String = ""
+		var action_disabled: bool = false
+		var action_tip: String = ""
+		if unlocked:
+			action_text = "🏗 ساخت • $%s" % _format_money(definition.build_cost)
+			action_tip = definition.description_fa
+		else:
+			action_text = "🔓 مسیر • $%s" % _format_money(definition.unlock_cost)
+			action_disabled = float(snapshot["money"]) < definition.unlock_cost
+			if action_disabled:
+				action_tip = "پول کافی نیست؛ برای بازکردن مسیر $%s لازم است." % _format_money(definition.unlock_cost)
+			else:
+				action_tip = definition.description_fa
+		for route_button: Button in (_route_buttons[definition_id] as Array):
+			route_button.text = action_text
+			route_button.disabled = action_disabled
+			route_button.tooltip_text = action_tip
 	var buildings: Array[Dictionary] = snapshot["buildings"]
 	var preview_cost: float = 0.0
 	if _catalog.buildings.has(_build_mode_id):
@@ -868,7 +1260,7 @@ func _update_inspector(buildings: Array[Dictionary]) -> void:
 	if str(selected["kind"]) == "storage":
 		lines.append("+%s ظرفیت انبار" % _format_amount(float(selected["storage_capacity"])))
 	if str(selected["kind"]) == "market":
-		lines.append("فروش %s واحد/ثانیه" % String.num(float(selected["market_rate_per_second"]), 2))
+		lines.append("فروش آنی مازاد بر حداقل نگه‌داری")
 	if float(selected["power_demand_per_second"]) > 0.0:
 		lines.append("−⚡ %s/s" % String.num(float(selected["power_demand_per_second"]), 2))
 	if str(selected["kind"]) == "power":
@@ -932,7 +1324,7 @@ func _update_shop_controls(snapshot: Dictionary) -> void:
 
 func _update_market_controls(snapshot: Dictionary) -> void:
 	var market_count: int = int(snapshot["market_count"])
-	_market_summary.text = "%d بازار  •  %s واحد/ثانیه" % [market_count, String.num(_market_rate_from_snapshot(snapshot), 2)]
+	_market_summary.text = "%d بازار  •  فروش آنی مازاد بر حداقل نگه‌داری" % market_count
 	var rules: Dictionary = snapshot["market_rules"]
 	for row: Dictionary in _market_controls:
 		var resource_id: String = str(row["resource_id"])
@@ -945,18 +1337,14 @@ func _update_market_controls(snapshot: Dictionary) -> void:
 		minimum.set_value_no_signal(float(rule.get("minimum_stock", 0.0)))
 
 
-func _market_rate_from_snapshot(snapshot: Dictionary) -> float:
-	var total: float = 0.0
-	var buildings: Array[Dictionary] = snapshot["buildings"]
-	for building: Dictionary in buildings:
-		if str(building["kind"]) == "market":
-			total += float(building["market_rate_per_second"])
-	return total
-
-
 func _select_building(definition_id: String) -> void:
-	if not _catalog.buildings.has(definition_id) or not _simulation.is_tier_unlocked(_catalog.buildings[definition_id].tier):
-		_notice = "این ساختمان هنوز در Tier فعلی باز نشده است."
+	if not _catalog.buildings.has(definition_id):
+		_notice = "این ساختمان در داده‌های بازی وجود ندارد."
+		_refresh_ui()
+		return
+	var definition: BuildingDefinition = _catalog.buildings[definition_id]
+	if not _simulation.is_building_unlocked(definition_id):
+		_notice = "ابتدا مسیر این ساختمان را از نقشهٔ مسیر تولید با پرداخت هزینه باز کن."
 		_refresh_ui()
 		return
 	_close_popup()
@@ -1061,12 +1449,12 @@ func _update_progression(snapshot: Dictionary) -> void:
 	var next_revenue_goal: float = _catalog.balance.tier_two_revenue if current_tier < 2 else _catalog.balance.tier_three_revenue
 	var next_production_goal: float = _catalog.balance.tier_two_production if current_tier < 2 else _catalog.balance.tier_three_production
 	if current_tier >= 3:
-		_progress_summary.text = "Tier 3 • همهٔ ساختمان‌ها باز هستند"
+		_progress_summary.text = "Tier 3 در دسترس است • مسیر هر ساختمان را جداگانه باز کن و سپس هزینهٔ ساخت را بپرداز."
 		_animate_progress_to(100.0)
 	else:
 		var revenue_progress: float = clampf(revenue / maxf(next_revenue_goal, 1.0), 0.0, 1.0)
 		var production_progress: float = clampf(production / maxf(next_production_goal, 1.0), 0.0, 1.0)
-		_progress_summary.text = "Tier %d → %d   •   درآمد %d%%   •   تولید %d%%" % [current_tier, current_tier + 1, int(round(revenue_progress * 100.0)), int(round(production_progress * 100.0))]
+		_progress_summary.text = "Tier %d در دسترس  →  Tier %d   •   درآمد %d%%   •   تولید %d%%" % [current_tier, current_tier + 1, int(round(revenue_progress * 100.0)), int(round(production_progress * 100.0))]
 		_animate_progress_to(maxf(revenue_progress, production_progress) * 100.0)
 	var expansion: Dictionary = _simulation.get_next_expansion()
 	if expansion.is_empty():

@@ -6,6 +6,7 @@ var land_size: int = 8
 var initial_storage_capacity: float = 40.0
 var inventory: Dictionary[String, float] = {}
 var market_rules: Dictionary[String, Dictionary] = {}
+var unlocked_buildings: Dictionary[String, bool] = {}
 var buildings: Array[BuildingInstance] = []
 var next_building_id: int = 1
 var simulated_seconds: float = 0.0
@@ -19,6 +20,7 @@ var sound_enabled: bool = true
 func configure(resource_ids: Array[String], starting_money: float, starting_land_size: int, starting_capacity: float, market_sell_defaults: Dictionary = {}) -> void:
 	inventory.clear()
 	market_rules.clear()
+	unlocked_buildings.clear()
 	buildings.clear()
 	money = starting_money
 	land_size = starting_land_size
@@ -49,6 +51,7 @@ func copy_state() -> GameState:
 	copied.initial_storage_capacity = initial_storage_capacity
 	copied.inventory = inventory.duplicate()
 	copied.market_rules = market_rules.duplicate(true)
+	copied.unlocked_buildings = unlocked_buildings.duplicate()
 	copied.next_building_id = next_building_id
 	copied.simulated_seconds = simulated_seconds
 	copied.cumulative_revenue = cumulative_revenue

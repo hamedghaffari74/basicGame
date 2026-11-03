@@ -8,6 +8,7 @@ var kind: String = ""
 var glyph: String = "?"
 var color_hex: String = "#ffffff"
 var build_cost: float = 0.0
+var unlock_cost: float = 0.0
 var recipe_id: String = ""
 var storage_capacity: float = 0.0
 var market_rate_per_second: float = 0.0

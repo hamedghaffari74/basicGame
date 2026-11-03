@@ -17,16 +17,16 @@ If Godot is not in `PATH`, replace the `$godot` value with the path to the Godot
 
 ## Latest run
 
-- Result: **191 assertions passed; 0 failed**.
-- The test scene exited normally. The log included `PASS: 191 assertions` and no script parse/runtime errors.
-- A separate editor import/parse pass completed with exit code 0.
+- Result: **231 assertions passed; 0 failed** (last green run; the suite has since grown with 33 city-sprite loads and the level-10 city upgrade path — re-run locally to confirm).
+- The test scene exited normally. The log included `PASS: 231 assertions` and no script parse/runtime errors.
+- A separate editor import/parse pass completed with exit code 0 (also re-verified after the 33 city SVGs were generated).
 - Five-minute economy scenario: sale at 0.1 simulated seconds, first farm upgrade at 94.2 seconds, `$781.8` revenue and 39.9/40 storage at five minutes.
 - Manual shop sale works without a market. Empty stock returns a clear failure reason; the UI displays why the shop button is disabled.
 - Offline regression covers negative time, eight-hour cap, storage/sales constraints, and exact money/stock parity for a steady farm-and-market route against 0.1-second reference ticks.
 
 ## Coverage
 
-The runner exercises data validation, missing input suppliers, duplicate IDs, recipe references, loading all 15 new SVG sprites and generated UI audio, atomic construction failures, demolition refunds, grid coordinate mapping through the 24×24 limit, deterministic steps, shared storage, no same-pass recipe chaining, market minimum stock/throughput, power shortage and fuel depletion, battery charging/discharging/save, v1/v2 migration without repeat grants, manual shop sales, tier unlocks, all 8→12→16→20→24 land expansions with retained buildings, cardinal-only adjacency and refresh after demolition, offline calculation and repeat-claim prevention, prestige reset/bonus, upgrade limits, five-minute progression, and save/continue/backup recovery.
+The runner exercises data validation, missing input suppliers, duplicate IDs, recipe references, loading all 15 new SVG sprites and generated UI audio, all 33 city sprite stages, atomic construction failures, demolition refunds, grid coordinate mapping through the 24×24 limit, deterministic steps, shared storage, no same-pass recipe chaining, market minimum stock/throughput, power shortage and fuel depletion, battery charging/discharging/save, v1/v2 migration without repeat grants, manual shop sales, tier unlocks, all 8→12→16→20→24 land expansions with retained buildings, cardinal-only adjacency and refresh after demolition, offline calculation and repeat-claim prevention, prestige reset/bonus, upgrade limits including the city level-10 path, five-minute progression, and save/continue/backup recovery.
 
 ## Unverified by automation
 

@@ -1,7 +1,7 @@
 class_name SaveService
 extends RefCounted
 
-const SAVE_VERSION: int = 3
+const SAVE_VERSION: int = 4
 const DEFAULT_PATH: String = "user://industrial_frontier_save.json"
 
 
@@ -14,6 +14,7 @@ func save_state(state: GameState, path: String = DEFAULT_PATH) -> Dictionary:
 		"initial_storage_capacity": state.initial_storage_capacity,
 		"inventory": state.inventory,
 		"market_rules": state.market_rules,
+		"unlocked_buildings": state.unlocked_buildings,
 		"next_building_id": state.next_building_id,
 		"simulated_seconds": state.simulated_seconds,
 		"cumulative_revenue": state.cumulative_revenue,
@@ -114,13 +115,17 @@ func _read_candidate(catalog: GameCatalog, path: String) -> Dictionary:
 		return {"ok": false, "message": "ساختار ذخیره نامعتبر است؛ فایل تغییر نکرد."}
 	var migrated: bool = version < SAVE_VERSION
 	var saved_money_before_migration: float = candidate.money
-	if migrated:
+	var starting_money_adjusted: bool = version < 3 and candidate.money < catalog.balance.initial_money
+	if starting_money_adjusted:
 		candidate.money = maxf(candidate.money, catalog.balance.initial_money)
+	if candidate.initial_storage_capacity < catalog.balance.initial_storage_capacity:
+		candidate.initial_storage_capacity = catalog.balance.initial_storage_capacity
 	return {
 		"ok": true,
 		"state": candidate,
 		"migrated": migrated,
 		"saved_money_before_migration": saved_money_before_migration,
+		"starting_money_adjusted": starting_money_adjusted,
 		"saved_unix_time": int(data.get("saved_unix_time", Time.get_unix_time_from_system())),
 		"message": "ذخیره بارگذاری شد."
 	}
@@ -141,6 +146,19 @@ func _decode_state(catalog: GameCatalog, data: Dictionary, version: int) -> Game
 		return null
 	var candidate: GameState = GameState.new()
 	candidate.configure(catalog.resource_ids(), float(data["money"]), int(data["land_size"]), float(data["initial_storage_capacity"]), catalog.market_sell_defaults())
+	for definition: BuildingDefinition in catalog.buildings.values():
+		if definition.tier <= 1:
+			candidate.unlocked_buildings[definition.id] = true
+	if version >= 4:
+		if typeof(data.get("unlocked_buildings", null)) != TYPE_DICTIONARY:
+			return null
+		var unlocked_rows: Dictionary = data["unlocked_buildings"]
+		for building_id_value: Variant in unlocked_rows:
+			var building_id: String = str(building_id_value)
+			if not catalog.buildings.has(building_id) or typeof(unlocked_rows[building_id_value]) != TYPE_BOOL:
+				return null
+			if bool(unlocked_rows[building_id_value]):
+				candidate.unlocked_buildings[building_id] = true
 	var inventory_data: Dictionary = data["inventory"]
 	for resource_id: String in catalog.resource_ids():
 		if version < SAVE_VERSION and not inventory_data.has(resource_id):
@@ -208,6 +226,12 @@ func _decode_state(catalog: GameCatalog, data: Dictionary, version: int) -> Game
 	if not _is_number(cumulative_production) or float(cumulative_production) < 0.0 or not _is_integer_number(prestige_points) or int(prestige_points) < 0 or not _is_integer_number(prestige_count) or int(prestige_count) < 0 or typeof(sound_enabled) != TYPE_BOOL:
 		return null
 	candidate.cumulative_production = float(cumulative_production)
+	if version < 4:
+		for definition: BuildingDefinition in catalog.buildings.values():
+			if definition.tier == 2 and (candidate.cumulative_revenue >= catalog.balance.tier_two_revenue or candidate.cumulative_production >= catalog.balance.tier_two_production):
+				candidate.unlocked_buildings[definition.id] = true
+			elif definition.tier == 3 and (candidate.cumulative_revenue >= catalog.balance.tier_three_revenue or candidate.cumulative_production >= catalog.balance.tier_three_production):
+				candidate.unlocked_buildings[definition.id] = true
 	candidate.prestige_points = int(prestige_points)
 	candidate.prestige_count = int(prestige_count)
 	candidate.sound_enabled = bool(sound_enabled)

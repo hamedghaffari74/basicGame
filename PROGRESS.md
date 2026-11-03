@@ -2,7 +2,7 @@
 
 ## Current status
 
-Phases 0–9 are implemented in the Godot project. The project was validated with Godot 4.7.2 and 191 automated assertions passed. No mouse, keyboard, or desktop-control automation was used. Human visual/usability review remains open because the game window was not opened.
+Phases 0–10 are implemented in the Godot project. The project was validated with Godot 4.7.2 and 231 automated assertions passed. No mouse, keyboard, or desktop-control automation was used. Human visual/usability review remains open because the game window was not opened.
 
 ## Phase 0 — contract and architecture
 
@@ -45,8 +45,19 @@ Phases 0–9 are implemented in the Godot project. The project was validated wit
 - Updated project instructions, balance, testing, credits, and architecture documentation.
 - Added a Windows Desktop export preset and attempted a release export. Godot reported that the matching Windows debug/release export templates are missing from this installation, so no executable was produced. No template was installed. The GUI was not opened for visual review per the user's request to keep system control with them.
 
+## Phase 10 — production tree view
+
+- The "مسیر تولید" modal is now a real folding tree in the style of the engine's Scene dock: one branch per end product (خودرو، الکترونیک، غذا، پوشاک، آرد، سیمان), each unfolding top-down from the final good through its ingredients to the raw mines and farms, plus a flat infrastructure section (power/storage/market/park) below.
+- Each row shows a fold marker (▸/▾), resource icon, building name (⭐ gold for the branch root), short in/out flow, built count (×n), lock state, and the unlock/build button; clicking anywhere on a row triggers the same action. A search box filters rows by building or resource name, and ➕/➖ buttons expand or collapse every branch.
+
+## Phase 11 — city buildings (شهرسازی)
+
+- New `شهرسازی` build tab with 3 decorative Tier-1 buildings of a new `decoration` kind: house ($60), pine ($25), oak ($30). No recipe, power, storage, or adjacency effects — pure visual progression. Catalog cap raised from 5 to 10 so they grow to level 10 (existing buildings keep max 5).
+- 33 cohesive flat-style SVGs generated parametrically by `tools/generate_city_sprites.gd` (house_1..10, pine_1..10, oak_1..10 + level-1 base files): fenced plot → hut → house → mansion → 2/3/3-fancy houses → apartment block → towers → city; sapling → tree → grove → forest (flowers, rocks, pond, bench, birds). Grid and build buttons load per-level art with base fallback. Preview grid: `tools/city_preview.png`.
+- Suite grows by 60 assertions (33 sprite loads + 27 level-10 upgrade path). NOTE: the local Godot runtime currently hangs on startup (even on an empty project), so no headless run was possible in this environment — re-run `tests/test_runner.tscn` locally to confirm the expected 291 green.
+
 ## Validation
 
-- Godot 4.7.2 headless test runner: **191 assertions passed, 0 failed**.
-- Coverage includes legacy migration, manual sales, all tier/expansion paths, cardinal adjacency, power and battery, offline cap/negative time/steady-route parity, prestige reset/bonus, storage, save round-trip, and five-minute deterministic play.
+- Godot 4.7.2 headless test runner: **231 assertions passed, 0 failed** (last verified run, before Phase 11).
+- Coverage includes legacy migration, manual sales, all tier/expansion paths, cardinal adjacency, power and battery, offline cap/negative time/steady-route parity, prestige reset/bonus, storage, save round-trip, car-chain regression, per-building unlock flow, five-minute deterministic play, all 33 city sprite loads, and the house/pine/oak level-10 upgrade path.
 - Interactive mouse/keyboard usability, Persian font rendering, and visual scaling still need a human check in the user's own Godot window.
