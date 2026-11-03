@@ -1,6 +1,10 @@
 extends Control
 
 const BUILDING_CATEGORIES: Array[String] = ["کشاورزی", "معدن", "کارخانه", "خدمات", "نیروگاه", "زیرساخت", "شهرسازی"]
+const BUILD_CATEGORY_ICONS: Dictionary[String, String] = {
+	"کشاورزی": "🌾", "معدن": "⛏️", "کارخانه": "🏭",
+	"خدمات": "🛎️", "نیروگاه": "⚡", "زیرساخت": "📦", "شهرسازی": "🏠",
+}
 const SPEEDS: Array[float] = [0.0, 1.0, 2.0, 5.0]
 const RESOURCE_ICONS: Dictionary[String, String] = {
 	"wheat": "🌾", "wood": "🪵", "stone": "🪨", "flour": "🥣", "coal": "⚫",
@@ -64,6 +68,11 @@ var _progress_target: float = -1.0
 var _pulse_tweens: Dictionary = {}
 var _shop_controls: Array[Dictionary] = []
 var _build_buttons: Dictionary[String, Button] = {}
+var _build_category_group: ButtonGroup
+var _build_category_buttons: Array[Button] = []
+var _build_category_pages: Array[Control] = []
+var _build_page_tween: Tween
+var _wobble_tweens: Dictionary = {}
 var _route_buttons: Dictionary = {}
 var _route_state_labels: Dictionary = {}
 var _tree_rows: Array[Dictionary] = []
@@ -536,12 +545,36 @@ func _build_build_panel() -> PanelContainer:
 	var body: VBoxContainer = VBoxContainer.new()
 	body.add_theme_constant_override("separation", 7)
 	body.add_child(_build_popup_header("ساخت", _close_popup))
-	var tabs: TabContainer = TabContainer.new()
-	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var tab_row: HBoxContainer = HBoxContainer.new()
+	tab_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	tab_row.add_theme_constant_override("separation", 6)
 	_build_buttons.clear()
-	for category: String in BUILDING_CATEGORIES:
+	_build_category_buttons.clear()
+	_build_category_pages.clear()
+	if _build_category_group == null:
+		_build_category_group = ButtonGroup.new()
+	var pages_box: VBoxContainer = VBoxContainer.new()
+	pages_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	pages_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for category_index: int in range(BUILDING_CATEGORIES.size()):
+		var category: String = BUILDING_CATEGORIES[category_index]
+		var tab_button: Button = Button.new()
+		tab_button.text = "%s %s" % [BUILD_CATEGORY_ICONS.get(category, "🏗️"), category]
+		tab_button.toggle_mode = true
+		tab_button.button_group = _build_category_group
+		tab_button.custom_minimum_size = Vector2(118.0, 40.0)
+		tab_button.focus_mode = Control.FOCUS_NONE
+		_style_action_button(tab_button, Color("#33523f"), Color("#486f55"), Color("#8bc489"))
+		tab_button.add_theme_font_size_override("font_size", 14)
+		tab_button.tooltip_text = "ساختمان‌های %s" % category
+		tab_button.pressed.connect(_select_build_category.bind(category_index))
+		tab_button.pressed.connect(_pulse_button.bind(tab_button))
+		_add_wobble_on_hover(tab_button)
+		tab_row.add_child(tab_button)
+		_build_category_buttons.append(tab_button)
 		var scroll: ScrollContainer = ScrollContainer.new()
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		var grid: GridContainer = GridContainer.new()
 		grid.columns = 4
 		grid.add_theme_constant_override("h_separation", 6)
@@ -554,11 +587,71 @@ func _build_build_panel() -> PanelContainer:
 			_build_buttons[definition.id] = build_button
 			grid.add_child(build_button)
 		scroll.add_child(grid)
-		tabs.add_child(scroll)
-		tabs.set_tab_title(tabs.get_tab_count() - 1, category)
-	body.add_child(tabs)
+		scroll.visible = false
+		pages_box.add_child(scroll)
+		_build_category_pages.append(scroll)
+	body.add_child(tab_row)
+	body.add_child(pages_box)
+	_select_build_category(0)
 	panel.add_child(body)
 	return panel
+
+
+func _select_build_category(index: int) -> void:
+	if index < 0 or index >= _build_category_pages.size():
+		return
+	for page_index: int in range(_build_category_pages.size()):
+		var page: Control = _build_category_pages[page_index]
+		var active: bool = page_index == index
+		page.visible = active
+		if active:
+			_build_category_buttons[page_index].button_pressed = true
+			_animate_build_page(page)
+
+
+func _animate_build_page(page: Control) -> void:
+	if _build_page_tween != null and _build_page_tween.is_valid():
+		_build_page_tween.kill()
+	page.pivot_offset = page.size * 0.5
+	page.scale = Vector2(0.96, 0.96)
+	page.modulate.a = 0.25
+	_build_page_tween = create_tween().set_parallel(true)
+	_build_page_tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_build_page_tween.tween_property(page, "scale", Vector2.ONE, 0.22)
+	_build_page_tween.tween_property(page, "modulate:a", 1.0, 0.18)
+
+
+func _add_wobble_on_hover(button: Button) -> void:
+	button.mouse_entered.connect(_wobble_button.bind(button))
+	button.mouse_exited.connect(_calm_button.bind(button))
+
+
+func _wobble_button(button: Button) -> void:
+	if not is_instance_valid(button):
+		return
+	if _wobble_tweens.has(button):
+		var old: Tween = _wobble_tweens[button]
+		if old != null and old.is_valid():
+			old.kill()
+		_wobble_tweens.erase(button)
+	button.pivot_offset = button.size * 0.5
+	var wobble: Tween = create_tween()
+	_wobble_tweens[button] = wobble
+	wobble.tween_property(button, "rotation", 0.035, 0.07)
+	wobble.tween_property(button, "rotation", -0.035, 0.09)
+	wobble.tween_property(button, "rotation", 0.0, 0.08)
+	wobble.finished.connect(func() -> void: _wobble_tweens.erase(button))
+
+
+func _calm_button(button: Button) -> void:
+	if not is_instance_valid(button):
+		return
+	if _wobble_tweens.has(button):
+		var old: Tween = _wobble_tweens[button]
+		if old != null and old.is_valid():
+			old.kill()
+		_wobble_tweens.erase(button)
+	button.rotation = 0.0
 
 
 func _build_shop_panel() -> PanelContainer:
@@ -1073,6 +1166,8 @@ func _make_build_button(definition: BuildingDefinition) -> Button:
 	button.tooltip_text = _building_tooltip(definition)
 	button.text_direction = Control.TEXT_DIRECTION_AUTO
 	button.pressed.connect(_select_building.bind(definition.id))
+	button.pressed.connect(_pulse_button.bind(button))
+	_add_wobble_on_hover(button)
 	return button
 
 
